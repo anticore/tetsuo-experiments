@@ -68,154 +68,22 @@
                     face.connectTo(three);
                 });
 
-                let squares = new TETSUO.ShaderNode("squares", scene.renderer, {
-                    fragmentShader: [
-                        TETSUO.Shaders.hash,
-                        TETSUO.Shaders.math,
+                let glitch = new TETSUO.DisplaceGlitchNode("glitch", scene.renderer)
+                    .addInput(three, "inputTex")
+                    .uniform("amount", 1, "glitch amt.")
+                    .uniform("speed", 10, "glitch speed")
+                    .uniform("verticalDivs", 60, "glitch vert. div.")
+                    .uniform("horizontalDivs", 30, "glitch hor. div.");
 
-                        /* glsl */ `
-                            uniform float iTime;
+                let bloom = new TETSUO.BloomNode("bloom", scene.renderer)
+                    .addInput(glitch, "inputTex")
+                    .uniform("separation", 6, "bloom sep.")
+                    .uniform("threshold", 0.6, "bloom thresh.")
+                    .uniform("amount", 2, "bloom amt.");
 
-                            uniform float glitchspeed;
-                            uniform float glitchdivx;
-                            uniform float glitchdivy;
-
-                            varying vec2 vUv;
-
-                            void main() {
-                                vec2 p = vUv + floor(iTime * glitchspeed);
-                                vec2 fl = vec2(floor(p.x * glitchdivx), floor(p.y * glitchdivy));
-                                //vec2 fr = fract(vUv * 10.);
-                                float c = sat(hash12(fl), 0.9, 0., 1.);
-
-                                gl_FragColor = vec4(vec3(c), 1.);
-                            }
-                        `,
-                    ].join("\n"),
-                })
-                    .addInput(new TETSUO.UniformNode("glitchspeed", { value: 10 }))
-                    .addInput(new TETSUO.UniformNode("glitchdivx", { value: 30 }))
-                    .addInput(new TETSUO.UniformNode("glitchdivy", { value: 50 }));
-
-                let combine = new TETSUO.ShaderNode("combine", scene.renderer, {
-                    fragmentShader: /* glsl */ `
-                            varying vec2 vUv;
-                            uniform sampler2D squares;
-                            uniform sampler2D three;
-                            
-                            uniform float holoamount;
-                
-                            void main() {
-                                vec4 tSquares = texture2D(squares, vUv);
-                                vec4 tHolo = texture2D(three, vUv + (tSquares.xy  * .005));
-                
-                                //gl_FragColor= vec4(tSquares);
-                                gl_FragColor = vec4(tHolo) * holoamount + vec4(tHolo * (tSquares * 0.9)) * (1. - holoamount);
-                            }
-                        `,
-                }).addInput(
-                    new TETSUO.UniformNode("holoamount", {
-                        value: 0.9,
-                        gui: { minValue: 0, maxValue: 0.9 },
-                    })
-                );
-
-                three.connectTo(combine);
-                squares.connectTo(combine);
-
-                let bloom = new TETSUO.ShaderNode("bloom", scene.renderer, {
-                    fragmentShader: /* glsl */ `
-                            varying vec2 vUv;
-                            
-                            uniform sampler2D combine;
-
-                            uniform float bloomsep;
-                            uniform float bloomthresh;
-                            uniform float bloomamount;
-
-                            vec4 threshfilter(vec2 p) {
-                                vec4 t = texture2D(combine, p / vec2(1280., 720.));
-                                float g = max(t.r, max(t.g, t.b));
-
-                                if (g > bloomthresh) {
-                                    return t;
-                                }
-
-                                return vec4(0.);
-                            }
-
-                            vec4 box(vec2 p) {
-                                vec4 result = vec4(0.);
-
-                                for (float i = -2.; i <= 2.; i++) {
-                                    for (float j = -2.; j <= 2.; j++) {
-                                        vec4 color = threshfilter(p + vec2(i, j) * bloomsep);
-                                        result.rgb += color.rgb;
-                                    }
-                                }
-
-                                result.rgb /= (2. * 2. + 1.) * (2. * 2. + 1.);
-                                result.a = 1.;
-
-                                return result;
-                            }
-
-                            void main() {   
-                            
-                                gl_FragColor = texture2D(combine, vUv) + mix(vec4(0), box(vUv * vec2(1280., 720.)), bloomamount);
-                            }
-                        `,
-                })
-                    .addInput(new TETSUO.UniformNode("bloomsize", { value: 5 }))
-                    .addInput(new TETSUO.UniformNode("bloomsep", { value: 6 }))
-                    .addInput(new TETSUO.UniformNode("bloomthresh", { value: 0.4 }));
-
-                let bloomsep = new TETSUO.UniformNode("bloomsep", { value: 3 });
-                bloom.addInput(bloomsep);
-
-                let bloomamount = new TETSUO.UniformNode("bloomamount", { value: 1.5 });
-                bloom.addInput(bloomamount);
-
-                bloom.onUpdate((time) => {
-                    bloomamount.setValue(Math.cos(time) + 2);
-                    bloomsep.setValue(Math.sin(time * 2) * 2 + 6);
-                });
-
-                combine.connectTo(bloom);
-
-                let anaglyph = new TETSUO.ShaderNode("anaglyph", scene.renderer, {
-                    fragmentShader: [
-                        TETSUO.Shaders.math,
-                        TETSUO.Shaders.hash,
-                        /* glsl */ `
-                                varying vec2 vUv;
-
-                                uniform float iTime;
-                                uniform sampler2D bloom;
-                                uniform float shiftdist;
-
-                                vec4 anaglyph(sampler2D tex, vec2 p) {
-                                    float s = sat(sin(hash11(iTime)));
-                                    float amount = shiftdist * s;
-
-                                    return vec4(
-                                        texture2D(tex, vec2(p.x - amount, p.y)).r, 
-                                        texture2D(tex, p).g, 
-                                        texture2D(tex,  vec2(p.x + amount, p.y)).b,
-                                        1.
-                                    );
-                                }
-
-                                void main() {
-                                    gl_FragColor = anaglyph(bloom, vUv);
-                                }
-                            `,
-                    ].join("\n"),
-                }).addInput(
-                    new TETSUO.UniformNode("shiftdist", { value: 0.015, gui: { step: 0.001 } })
-                );
-
-                bloom.connectTo(anaglyph);
+                let anaglyph = new TETSUO.AnaglyphNode("anaglyph", scene.renderer)
+                    .addInput(bloom, "inputTex")
+                    .uniform("amount", 0.015, "anaglyph amt.");
 
                 scene.connectToScreen(anaglyph);
             });
