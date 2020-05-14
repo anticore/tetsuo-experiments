@@ -8,8 +8,8 @@
             }
 
             #viewport {
-                width: 100vw;
-                height: 100vh;
+                width: 1280px;
+                height: 720px;
             }
         </style>
     </head>
@@ -88,7 +88,6 @@
                         /*glsl */ `
                             varying vec2 vUv;
                             uniform float iTime;
-
 
                             void main() {
                                 float v = abs(sin(2. * 100. * (vUv.y - iTime * 5. / 1.)));
@@ -185,7 +184,84 @@
                     .addInput(fog, "inputTex")
                     .uniform("amount", 0.009, "anaglyph amt.");
 
-                scene.connectToScreen(ana);
+                let bg = ana;
+
+                let pixi = new TETSUO.PIXINode("pixi", scene.renderer, {
+                    manualRender: true,
+                });
+
+                let background = new PIXI.Graphics();
+
+                background.beginFill(0x002c2c);
+                background.drawRect(0, 0, 800, 600);
+                background.endFill();
+
+                background.pivot.set(400, 300);
+                background.position.set(1280 / 2, 720 / 2);
+
+                pixi.add(background);
+
+                let text = new PIXI.Text(
+                    "Booting XPTO v132.55.69 ... \n\n\n\nCore systems ...... OK\n\nSecurity infrastructure ...... OK\n\nParalel synchronization ...... OK\n\nDatabase ...... OK\n\nBrain/Computer interface ....... WARNING\n\n\n\n\n\nChecking logs ...\n\nFound ENTRY date 02/12/20XX\n\nEmergency AI protocol activated █",
+                    {
+                        fill: 0x3cdc7c,
+                        fontFamily: "monospace",
+                        fontSize: 22,
+                    }
+                );
+                text.position.set(300, 100);
+                pixi.add(text);
+
+                let crt = new TETSUO.ShaderNode("crt", scene.renderer, {
+                    fragmentShader: TETSUO.Shaders.compile(
+                        TETSUO.Shaders.math,
+                        TETSUO.Shaders.filters,
+
+                        /* glsl */ `
+                            varying vec2 vUv;
+                            uniform sampler2D pixi;
+                            uniform float iTime;
+
+                            float gradient(vec2 p) {
+                                return 1. - length(p / 3.);
+                            }
+
+                            float scanline(vec2 p) {
+                                float s = 1. - abs(sin(iTime * 2. + p.y * 3.));
+                                return s > 0.7 ? s : 0.;
+                            }
+
+                            float smallline(vec2 p) {
+                                return abs(sin(iTime * 5. - p.y * 450.) * 0.9);
+                            }
+
+                            void main() {
+                                vec2 p = curve(vUv);
+
+                                vec4 t = texture2D(pixi, p);  
+
+                                gl_FragColor = mix(t, (t  + scanline(p) * 0.02 - smallline(p) * 0.02) * gradient((p - 0.5) * 2.), t.a);
+                            }
+                        `
+                    ),
+                }).addInput(pixi);
+
+                let combined = new TETSUO.ShaderNode("combined", scene.renderer, {
+                    fragmentShader: /* glsl */ `
+                        varying vec2 vUv;
+                        
+                        uniform sampler2D bg;
+                        uniform sampler2D fg;
+
+                        void main() {
+                            gl_FragColor = mix(texture2D(bg, vUv), texture2D(fg, vUv), texture2D(fg, vUv).a);
+                        }
+                    `,
+                })
+                    .addInput(bg, "bg")
+                    .addInput(crt, "fg");
+
+                scene.connectToScreen(combined);
             });
         </script>
     </body>
