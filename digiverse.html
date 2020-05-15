@@ -246,20 +246,9 @@
                     ),
                 }).addInput(pixi);
 
-                let combined = new TETSUO.ShaderNode("combined", scene.renderer, {
-                    fragmentShader: /* glsl */ `
-                        varying vec2 vUv;
-                        
-                        uniform sampler2D bg;
-                        uniform sampler2D fg;
-
-                        void main() {
-                            gl_FragColor = mix(texture2D(bg, vUv), texture2D(fg, vUv), texture2D(fg, vUv).a);
-                        }
-                    `,
-                })
-                    .addInput(bg, "bg")
-                    .addInput(crt, "fg");
+                let combined = new TETSUO.OverlayNode("combined", scene.renderer)
+                    .addInput(bg, "bgTex")
+                    .addInput(crt, "fgTex");
 
                 scene.connectToScreen(combined);
             });
