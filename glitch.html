@@ -20,7 +20,11 @@
             TETSUO.Utils.ready(() => {
                 let scene = new TETSUO.Scene({ dev: true, autoStart: true });
 
-                let cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshNormalMaterial());
+                let cube = new THREE.Mesh(
+                    new THREE.BoxGeometry(1, 1, 1),
+                    new THREE.MeshNormalMaterial()
+                );
+                cube.position.z = -3;
                 let three = new TETSUO.THREENode("three", scene.renderer);
                 three.add(cube);
                 three.onUpdate((time) => {
