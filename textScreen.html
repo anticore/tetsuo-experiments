@@ -1,0 +1,164 @@
+<html>
+    <head>
+        <title>Raymarch example</title>
+
+        <style>
+            body,
+            html {
+                margin: 0;
+                background: #1c1c1c;
+            }
+
+            #viewport {
+                display: flex;
+            }
+
+            #controls {
+                display: flex;
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+                justify-content: center;
+                margin-left: 20px;
+                color: white;
+                font-family: monospace;
+            }
+
+            #controls input,
+            textarea {
+                background: black;
+                border: 1px solid #3c3c3c;
+                color: white;
+                margin: 0.3rem;
+                font-family: monospace;
+                font-size: 1.2rem;
+            }
+
+            #controls button {
+                background: black;
+                color: white;
+                border: 1px solid #3c3c3c;
+                font-family: monospace;
+                font-size: 1.2rem;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="viewport">
+            <canvas id="viewport-canvas" width="1280px" height="720px"></canvas>
+
+            <div id="controls">
+                <h1>Add line to screen</h1>
+                <input id="lineText" type="text" placeholder="Line text" />
+                <button onClick="addLine()">Add line</button>
+
+                <h1>Add question to screen</h1>
+                <input id="questionText" type="text" placeholder="Question text" />
+                <input id="answer1Text" type="text" placeholder="Answer 1 text" />
+                <input id="answer2Text" type="text" placeholder="Answer 2 text" />
+                <input id="answer3Text" type="text" placeholder="Answer 3 text" />
+                <button onClick="addQuestion()">Add question</button>
+                <button onClick="selectAnswer(1)">Select answer 1</button>
+                <button onClick="selectAnswer(2)">Select answer 2</button>
+                <button onClick="selectAnswer(3)">Select answer 3</button>
+                <button onClick="confirmAnswer()">Confirm</button>
+
+                <h1>Events</h1>
+                <textarea id="events" rows="4" cols="40"></textarea>
+            </div>
+        </div>
+
+        <script src="./lib/three.min.js"></script>
+        <script src="./lib/pixi.min.js"></script>
+        <script src="./lib/tetsuo.min.js"></script>
+
+        <script>
+            scene = new THREE.Scene();
+            renderer = new THREE.WebGLRenderer({
+                canvas: document.getElementById("viewport-canvas"),
+            });
+            camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+            // init the text screen
+            window.textScreen = new TETSUO.Premade.TextScreen({
+                width: 1280,
+                height: 720,
+
+                // optional options
+                backgroundColor: 0x1c1e1c,
+                marginTop: 100,
+                marginLeft: 200,
+                paddingBottom: 50,
+                paddingLeft: 100,
+
+                defaultTextStyle: {
+                    fontSize: 24,
+                    fill: 0x3cdc7c,
+                },
+            });
+
+            // build and prepare for render
+            window.textScreen.prepare();
+
+            // add the output quad to the scene
+            quad = textScreen.quad;
+            scene.add(quad);
+
+            // update loop
+            let prevTime = performance.now();
+            function tick() {
+                let time = performance.now() - prevTime;
+
+                textScreen.update(time);
+                renderer.render(scene, camera);
+
+                prevTime = performance.now();
+
+                requestAnimationFrame(tick);
+            }
+
+            tick();
+
+            function addLine() {
+                let text = document.getElementById("lineText").value;
+                document.getElementById("lineText").value = "";
+                window.textScreen.addText(text);
+            }
+
+            function addQuestion() {
+                let questionText = document.getElementById("questionText").value;
+                let answer1Text = document.getElementById("answer1Text").value;
+                let answer2Text = document.getElementById("answer2Text").value;
+                let answer3Text = document.getElementById("answer3Text").value;
+
+                let answers = [];
+                if (answer1Text) answers.push({ id: "answer1", textContent: answer1Text });
+                if (answer2Text) answers.push({ id: "answer2", textContent: answer2Text });
+                if (answer3Text) answers.push({ id: "answer3", textContent: answer3Text });
+
+                window.textScreen.addQuestion(questionText, answers);
+                document.getElementById("questionText").value = "";
+                document.getElementById("answer1Text").value = "";
+                document.getElementById("answer2Text").value = "";
+                document.getElementById("answer3Text").value = "";
+            }
+
+            function selectAnswer(answerno) {
+                window.textScreen.selectAnswer("answer" + answerno);
+            }
+
+            function confirmAnswer() {
+                window.textScreen.confirmAnswer();
+            }
+
+            function newEvent(eventType, eventData) {
+                document.getElementById("events").value += `${eventType} (${JSON.stringify(
+                    eventData
+                )})\n`;
+            }
+
+            window.textScreen.subscribe(newEvent);
+        </script>
+    </body>
+</html>
